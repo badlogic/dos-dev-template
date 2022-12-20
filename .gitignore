@@ -2,3 +2,4 @@ build
 tools/djgpp
 tools/dosbox-x
 tools/gdb
+.cache

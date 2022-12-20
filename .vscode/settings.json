@@ -1,3 +1,4 @@
 {
-	"cmake.configureOnOpen": true
+	"cmake.configureOnOpen": true,
+	"cmake.configureArgs": ["-DCMAKE_EXPORT_COMPILE_COMMANDS=TRUE"],
 }
