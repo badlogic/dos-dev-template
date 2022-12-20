@@ -12,8 +12,13 @@ set (CMAKE_SYSTEM_NAME linux-djgpp)
 set (DJGPP TRUE)
 
 # specify the cross compiler
-set (CMAKE_C_COMPILER ${CMAKE_CURRENT_LIST_DIR}/djgpp/bin/i586-pc-msdosdjgpp-gcc)
-set (CMAKE_CXX_COMPILER ${CMAKE_CURRENT_LIST_DIR}/djgpp/bin/i586-pc-msdosdjgpp-g++)
+if(WIN32)
+	set (CMAKE_C_COMPILER ${CMAKE_CURRENT_LIST_DIR}/djgpp/bin/i586-pc-msdosdjgpp-gcc.exe)
+	set (CMAKE_CXX_COMPILER ${CMAKE_CURRENT_LIST_DIR}/djgpp/bin/i586-pc-msdosdjgpp-g++.exe)
+else()
+	set (CMAKE_C_COMPILER ${CMAKE_CURRENT_LIST_DIR}/djgpp/bin/i586-pc-msdosdjgpp-gcc)
+	set (CMAKE_CXX_COMPILER ${CMAKE_CURRENT_LIST_DIR}/djgpp/bin/i586-pc-msdosdjgpp-g++)
+endif()
 
 # where is the target environment
 set (CMAKE_FIND_ROOT_PATH ${CMAKE_CURRENT_LIST_DIR})
