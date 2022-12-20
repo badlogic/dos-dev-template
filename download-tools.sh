@@ -62,10 +62,13 @@ unzip -o dosbox.zip &> /dev/null
 rm dosbox.zip
 
 echo "Installing VS Code extensions"
-code --install-extension llvm-vs-code-extensions.vscode-clangd
-code --install-extension ms-vscode.cmake-tools
-code --install-extension ms-vscode.cpptools
-code --install-extension webfreak.debug
+if [[ $(code --version) ]]; then
+    code --install-extension llvm-vs-code-extensions.vscode-clangd --install-extension ms-vscode.cmake-tools --install-extension ms-vscode.cpptools --install-extension webfreak.debug
+else
+    echo "WARNING: could not find 'code' on path. Could not install VS Code extensions!"
+    echo "         Ensure 'code' is on your PATH and re-run 'download-tools.sh' to install"
+    echo "         the VS Code extensions."
+fi
 
 if [[ "$os" == "linux-gnu"* ]]; then
     chmod a+x gdb/gdb > /dev/null
@@ -74,6 +77,7 @@ elif [[ "$os" == "darwin"* ]]; then
     chmod a+x dosbox-x/dosbox-x.app/Contents/MacOS/dosbox-x
     ln -s $(pwd)/dosbox-x/dosbox-x.app/Contents/MacOS/dosbox-x dosbox-x/dosbox-x
 elif [[ "$os" == "cygwin" ]] || [[ "$os" == "msys" ]] || [[ $(uname -r) =~ WSL ]]; then
+    echo "" > /dev/null
 fi
 
 popd &> /dev/null
