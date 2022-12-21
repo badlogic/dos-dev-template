@@ -4,9 +4,6 @@ set -e
 rm -rf tools/gdb
 rm -rf tools/djgpp
 rm -rf tools/dosbox-x
-rm -rf "tools/Visual Studio Code.app"
-rm -rf "tools/code"
-rm -rf "tools/code.exe"
 
 base_url="https://marioslab.io/dump/dos"
 gdb_url=""
@@ -18,7 +15,6 @@ if [[ "$os" == "linux-gnu"* ]]; then
     gdb_url="$base_url/gdb/gdb-7.1a-djgpp-linux.zip"
     djgpp_url="$base_url/djgpp/djgpp-linux64-gcc1210.tar.bz2"
     dosbox_url="$base_url/dosbox-x/dosbox-x-0.84.4-linux.zip"
-    vscode_url="$base_url/vscode/code-stable-x64-1671533708.tar.gz"
 elif [[ "$os" == "darwin"* ]]; then
     gdb_url="$base_url/gdb/gdb-7.1a-djgpp-macos-x86_64.zip"
     djgpp_url="$base_url/djgpp/djgpp-osx-gcc1210.tar.bz2"

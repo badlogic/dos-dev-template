@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "gdb",
+            "request": "attach",
+            "name": "main.exe debug",
+            "executable": "build/main.exe",
+            "target": "localhost:5123",
+            "remote": true,
+            "cwd": "${workspaceRoot}",
+            "gdbpath": "${workspaceFolder}/tools/gdb/gdb",
+        }
+    ]
+}

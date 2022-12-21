@@ -54,6 +54,7 @@ int getDebugChar(void) {
 void gdb_start(void) {
   set_debug_traps();
   atexit(restore_traps);
+  breakpoint();
 }
 
 /*
