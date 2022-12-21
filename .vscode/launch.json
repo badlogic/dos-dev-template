@@ -5,7 +5,7 @@
             "type": "gdb",
             "request": "attach",
             "name": "main.exe debug",
-            "executable": "build/main.exe",
+            "executable": "${workspaceFolder}/build/main.exe",
             "target": "localhost:5123",
             "remote": true,
             "cwd": "${workspaceRoot}",

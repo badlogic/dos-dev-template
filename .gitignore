@@ -3,3 +3,5 @@ tools/djgpp
 tools/dosbox-x
 tools/gdb
 .cache
+tools/capture
+serial.txt
