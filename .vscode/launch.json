@@ -4,12 +4,13 @@
         {
             "type": "gdb",
             "request": "attach",
-            "name": "main.exe debug",
-            "executable": "${workspaceFolder}/build/main.exe",
+            "name": "debug target",
+            "executable": "${command:cmake.getLaunchTargetPath}.exe",
             "target": "localhost:5123",
             "remote": true,
             "cwd": "${workspaceRoot}",
             "gdbpath": "${workspaceFolder}/tools/gdb/gdb",
+            "preLaunchTask": "task-start-dosbox"
         }
     ]
 }

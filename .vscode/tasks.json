@@ -1,0 +1,61 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "cmake",
+            "label": "task-cmake-build",
+            "command": "build",
+            "targets": [
+                "all"
+            ],
+            "group": "build",
+            "problemMatcher": [
+                {
+                    "fileLocation": "absolute",
+                    "pattern": [
+                        {
+                            "regexp": "error*",
+                            "file": 1,
+                            "line": 2,
+                            "severity": 3,
+                            "code": 4,
+                            "message": 5
+                        }
+                    ]
+                }
+            ],
+            "detail": "CMake template build task"
+        },
+        {
+            "type": "shell",
+            "label": "task-start-dosbox",
+            "command": "${workspaceFolder}/tools/dosbox-x/dosbox-x",
+            "args": [
+                "-conf",
+                "${workspaceFolder}/tools/dosbox-x.conf",
+                "-fastlaunch",
+                "-exit",
+                "${command:cmake.getLaunchTargetPath}.exe"
+            ],
+            "dependsOn": "task-cmake-build",
+            "isBackground": true,
+            "problemMatcher": [
+                {
+                    "pattern": [
+                        {
+                            "regexp": ".",
+                            "file": 1,
+                            "location": 2,
+                            "message": 3
+                        }
+                    ],
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": ".",
+                        "endsPattern": ".",
+                    }
+                }
+            ]
+        }
+    ]
+}
