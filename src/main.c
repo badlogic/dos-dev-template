@@ -1,18 +1,21 @@
-#include <bios.h>
-#include <stdio.h>
 #include "gdbstub.h"
+#include <bios.h>
+#include <dpmi.h>
+#include <stdio.h>
 
-typedef struct point {
-    float x, y;
-} point;
+void set_mode(int mode) {
+	__dpmi_regs regs;
+
+	memset(&regs, 0, sizeof regs);
+	regs.x.ax = mode;
+	__dpmi_int(0x10, &regs);
+}
 
 int main(void) {
-    gdb_start();
+	gdb_start();
 
-    point p = { 1, 2 };
-    p.x = 34;
-    p.y = p.x + 2;
+	set_mode(0x13);
 
-    printf("Hello DOS, %f, %f\n", p.x, p.y);
-    return 0;
+	set_mode(0x3);
+	return 0;
 }
