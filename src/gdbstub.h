@@ -77,11 +77,15 @@ void gdb_safepoint(void) {}
 #include <stdlib.h>
 #include <string.h>
 #include <sys/exceptn.h>
+#include <go32.h>
+#include "serial.h"
 
 
-#define COM_PORT 0
+#ifdef GDN_DEBUG_PRINT
 #define debug(...) printf(__VA_ARGS__)
-// #define debug(...)
+#else
+#define debug(...)
+#endif
 
 void set_debug_traps(void);
 void restore_traps(void);
@@ -96,11 +100,6 @@ void restore_traps(void);
  * boolean flag. != 0 means we've been initialized
  */
 static char gdb_initialized;
-
-/*
- *  debug >  0 prints ill-formed commands in valid packets & checksum errors
- */
-int remote_debug;
 
 /*
  *  Hexadecimal character string.
@@ -142,7 +141,7 @@ enum regnames {
 /*
  * Register storage buffer.
  */
-static int registers[NUMREGS];
+int registers[NUMREGS];
 
 static char *register_names[] = {"EAX",
 								 "ECX",
@@ -186,19 +185,39 @@ int gdb_i386errcode;
  */
 int gdb_i386vector = -1;
 
-static void handle_exception(int);
+int handle_exception(int);
+
+#include <crt0.h>
+
+int _crt0_startup_flags;
 
 void gdb_start(void) {
+	serial_open(0, 115200, 8, 'n', 1, SER_HANDSHAKING_NONE);
 	set_debug_traps();
 	atexit(restore_traps);
 	breakpoint();
 }
 
-void putDebugChar(char c) { _bios_serialcom(_COM_SEND, COM_PORT, c); }
+void putDebugChar(char c) { _bios_serialcom(_COM_SEND, 0, c); }
 
 int getDebugChar(void) {
-	return (_bios_serialcom(_COM_RECEIVE, COM_PORT, 0) & 0xff);
+	return (_bios_serialcom(_COM_RECEIVE, 0, 0) & 0xff);
 }
+
+/*void putDebugChar(char c) {
+	if (serial_write(COM_1, &c, 1) != 1) {
+		//debug("Couldn't read byte from serial port\n");
+	}
+}
+
+int getDebugChar(void) {
+	char c = 0;
+	int error = 0;
+	if (serial_read(COM_1, &c, 1) != 1) {
+		//debug("Couldn't write byte to serial port\n");
+	}
+	return c;
+}*/
 
 /***********************************************************************
  *  save_regs
@@ -212,7 +231,7 @@ int getDebugChar(void) {
  *  Returns:  None.
  *
  ***********************************************************************/
-static void save_regs(void) {
+void save_regs(void) {
 	registers[EAX] = (int) __djgpp_exception_state->__eax;
 	registers[ECX] = (int) __djgpp_exception_state->__ecx;
 	registers[EDX] = (int) __djgpp_exception_state->__edx;
@@ -231,7 +250,7 @@ static void save_regs(void) {
 	registers[GS] = (int) __djgpp_exception_state->__gs;
 }
 
-static void end_save_regs(void) {}
+void end_save_regs(void) {}
 
 // https://chromium.googlesource.com/chromiumos/third_party/gdb/+/3a0081862f33c17f3779e30ba71aacde6e7ab1bd/gdb/stubs/i386-stub.c#139
 extern void return_to_prog();
@@ -263,8 +282,7 @@ asm("        movl _registers, %eax");
 /* use iret to restore pc and flags together so
    that trace flag works right.  */
 asm("        iret");
-
-void _return_from_exception() { return_to_prog(); }
+void _return_from_interrupt() { return_to_prog(); }
 
 /***********************************************************************
  *  sigsegv_handler
@@ -281,6 +299,7 @@ static void sigsegv_handler(int except_num) {
 	/* Save general purpose registers */
 	save_regs();
 
+	debug("==== SIGSEGV\n");
 	/* Dispatch memory fault handling routine if one is registered. */
 	if (mem_fault_routine != 0) {
 		(*mem_fault_routine)();
@@ -293,7 +312,7 @@ static void sigsegv_handler(int except_num) {
 		handle_exception(except_num);
 	}
 
-	_return_from_exception();
+	_return_from_interrupt();
 }
 
 static void end_sigsegv_handler(void) {}
@@ -309,14 +328,13 @@ static void end_sigsegv_handler(void) {}
  *
  ***********************************************************************/
 static void sigfpe_handler(int except_num) {
-
 	/* Save general purpose registers */
 	save_regs();
 
 	/* Call the general purpose exception handler */
 	handle_exception(except_num);
 
-	_return_from_exception();
+	_return_from_interrupt();
 }
 
 static void end_sigfpe_handler(void) {}
@@ -336,10 +354,11 @@ static void sigtrap_handler(int except_num) {
 	/* Save general purpose registers */
 	save_regs();
 
+	debug("==== SIGTRAP\n");
 	/* Call the general purpose exception handler */
 	handle_exception(except_num);
 
-	_return_from_exception();
+	_return_from_interrupt();
 }
 
 static void end_sigtrap_handler(int except_num) {}
@@ -359,10 +378,12 @@ static void sigill_handler(int except_num) {
 	/* Save general purpose registers */
 	save_regs();
 
+	debug("==== SIGILL\n");
+
 	/* Call the general purpose exception handler */
 	handle_exception(except_num);
 
-	_return_from_exception();
+	_return_from_interrupt();
 }
 
 static void end_sigill_handler(int except_num) {}
@@ -410,11 +431,8 @@ static unsigned char *getpacket(void) {
 
 	while (1) {
 		/* wait around for the start character, ignore all other characters */
-		while ((ch = getDebugChar()) != '$') {
-			if (ch == 0x3) {
-				printf("Got an interrupt request\n");
-			}
-		}
+		while ((ch = getDebugChar()) != '$')
+			;
 
 	retry:
 		checksum = 0;
@@ -441,10 +459,6 @@ static unsigned char *getpacket(void) {
 			xmitcsum += hex(ch);
 
 			if (checksum != xmitcsum) {
-				if (remote_debug) {
-					fprintf(stderr, "bad checksum.  My count = 0x%x, sent=0x%x. buf=%s\n",
-							checksum, xmitcsum, buffer);
-				}
 				putDebugChar('-'); /* failed checksum */
 			} else {
 				putDebugChar('+'); /* successful transfer */
@@ -500,25 +514,6 @@ static void putpacket(unsigned char *buffer) {
 }
 
 static void end_putpacket(void) {}
-
-/***********************************************************************
- *  debug_error
- *
- *  Description:  Log errors
- *
- *  Inputs:
- *     format   - Format string.
- *     parm     - parameter string
- *  Outputs:  None.
- *  Returns:  None.
- *
- ***********************************************************************/
-static void debug_error(char *format, char *parm) {
-	if (remote_debug)
-		fprintf(stderr, format, parm);
-}
-
-static void end_debug_error(void) {}
 
 /*
  * Indicate to caller of mem2hex or hex2mem that there has been an error.
@@ -765,7 +760,10 @@ static void end_hexToInt(void) {}
  *  Returns:  None.
  *
  ***********************************************************************/
-static void handle_exception(int exceptionVector) {
+int in_handler = 0;
+int handle_exception(int exceptionVector) {
+	if (in_handler) return 0;
+	in_handler = 1;
 	int sigval, stepping;
 	int addr, length;
 	char *ptr;
@@ -773,14 +771,10 @@ static void handle_exception(int exceptionVector) {
 
 	gdb_i386vector = exceptionVector;
 
-	if (remote_debug)
-		printf("vector=%d, sr=0x%x, pc=0x%x\n", exceptionVector, registers[PS],
-			   registers[PC]);
-
 	/* reply to host that an exception has occurred */
 	sigval = computeSignal(exceptionVector);
 	debug("\n=== STOPPED: sig: %i, evec: %i, ip %p, [ip] %x\n", sigval, exceptionVector,
-		  registers[PC], *(unsigned char *) registers[PC]);
+		  (void *) registers[PC], *(unsigned char *) registers[PC]);
 	for (int l = 0; l < NUMREGS; l++)
 		debug("%s: %x ", register_names[l], registers[l]);
 	debug("\n");
@@ -805,6 +799,10 @@ static void handle_exception(int exceptionVector) {
 				remcomOutBuffer[1] = hexchars[sigval >> 4];
 				remcomOutBuffer[2] = hexchars[sigval % 16];
 				remcomOutBuffer[3] = 0;
+				break;
+			case 'D':
+				debug("D (Detach)\n");
+				exit(0);
 				break;
 			case 'H':
 				debug("H (Set thread for subsequent operations)\n");
@@ -833,13 +831,13 @@ static void handle_exception(int exceptionVector) {
 				} else if (!strcmp(ptr, "Symbol::")) {
 					debug("Symbol:: (Notify the target that GDB is prepared to serve symbol lookup requests)\n");
 					strcpy(remcomOutBuffer, "OK");
+				} else if (!strcmp(ptr, "")) {
 				} else {
 					debug("Unhandled: %c%s\n", cmd, ptr);
 				}
 				break;
 			case 'd':
 				debug("d (Toggle debug flag)\n");
-				remote_debug = !(remote_debug); /* toggle debug flag */
 				break;
 			case 'g': /* return the value of the CPU registers */
 				debug("g (Read general registers)\n");
@@ -878,7 +876,7 @@ static void handle_exception(int exceptionVector) {
 				debug("m (Read length addressable memory units starting at address addr)\n");
 				/* TRY TO READ %x,%x.  IF SUCCEED, SET PTR = 0 */
 				if (hexToInt(&ptr, &addr)) {
-					debug("read, addr: %p, ", addr);
+					debug("read, addr: %p, ", (void *) addr);
 					if (*(ptr++) == ',') {
 						if (hexToInt(&ptr, &length)) {
 							ptr = 0;
@@ -886,7 +884,6 @@ static void handle_exception(int exceptionVector) {
 							mem2hex((char *) addr, remcomOutBuffer, length, 1);
 							if (mem_err) {
 								strcpy(remcomOutBuffer, "E03");
-								debug_error("%s", "memory fault");
 							}
 						}
 					}
@@ -902,7 +899,7 @@ static void handle_exception(int exceptionVector) {
 				debug("M (Write length addressable memory units starting at address addr)\n");
 				/* TRY TO READ '%x,%x:'.  IF SUCCEED, SET PTR = 0 */
 				if (hexToInt(&ptr, &addr)) {
-					debug("write, addr: %p, ", addr);
+					debug("write, addr: %p, ", (void *) addr);
 					if (*(ptr++) == ',') {
 						if (hexToInt(&ptr, &length))
 							if (*(ptr++) == ':') {
@@ -911,7 +908,6 @@ static void handle_exception(int exceptionVector) {
 
 								if (mem_err) {
 									strcpy(remcomOutBuffer, "E03");
-									debug_error("%s", "memory fault");
 								} else {
 									strcpy(remcomOutBuffer, "OK");
 								}
@@ -932,14 +928,12 @@ static void handle_exception(int exceptionVector) {
 				stepping = 1;
 			case 'c': {
 				/* try to read optional parameter, pc unchanged if no parm */
-				int has_address = 0;
 				addr = 0;
-				if (has_address = hexToInt(&ptr, &addr)) {
+				if (hexToInt(&ptr, &addr)) {
 					registers[PC] = addr;
 				}
 
-				debug("%c, offset: %p, ip: %p (%s)\n", cmd, addr, registers[PC], cmd == 'c' ? "Continue" : "Step");
-				newPC = registers[PC];
+				debug("%c, offset: %p, ip: %p (%s)\n", cmd, (void *) addr, (void *) registers[PC], cmd == 'c' ? "Continue" : "Step");
 
 				/* clear the trace bit */
 				registers[PS] &= 0xfffffeff;
@@ -948,15 +942,11 @@ static void handle_exception(int exceptionVector) {
 				if (stepping)
 					registers[PS] |= 0x100;// FIXME?
 
-				return;
+				in_handler = 0;
+				return stepping;
 			}
 				/* kill the program */
 			case 'k': /* do nothing */
-#if 0
-                /* Huh? This doesn't look like "nothing".
-                   m68k-stub.c and sparc-stub.c don't have it.  */
-                    BREAKPOINT();
-#endif
 				break;
 			default:
 				debug("Unhandled: %c%s\n", cmd, ptr);
@@ -965,9 +955,34 @@ static void handle_exception(int exceptionVector) {
 		/* reply to the request */
 		putpacket((unsigned char *) remcomOutBuffer);
 	}
+	in_handler = 0;
+	return 0;
 }
 
 static void end_handle_exception(void) {}
+
+// tick handler that polls the serial port for new bytes and calls
+// handle_exception(302)
+int tick_counter = 0;
+_go32_dpmi_seginfo old_handle_tick, new_handle_tick;
+void handle_tick(void) {
+	tick_counter++;
+	if (tick_counter >= 5) {
+		int status = _bios_serialcom(_COM_STATUS, 0, 0);
+		if (status & (1 << 8)) {
+			registers[PC] = (int) &&_continue_point;
+			asm("movl %esp, _registers+16");
+			if (handle_exception(302)) {
+				// set stepping flag
+			}
+		_continue_point:
+			asm("nop");
+		}
+		tick_counter = 0;
+	}
+}
+
+void end_handle_tick() {}
 
 /***********************************************************************
  *  restore_traps
@@ -1003,9 +1018,14 @@ void restore_traps(void) {
  *  Returns:  None.
  *
  ***********************************************************************/
+extern jmp_buf *__djgpp_exception_state_ptr;
 static void lock_handler_data(void) {
+	_go32_dpmi_lock_data(&tick_counter, sizeof(tick_counter));
+	_go32_dpmi_lock_data(&old_handle_tick, sizeof(old_handle_tick));
+	_go32_dpmi_lock_data(&new_handle_tick, sizeof(new_handle_tick));
+
+	_go32_dpmi_lock_data(&in_handler, sizeof(in_handler));
 	_go32_dpmi_lock_data(&gdb_initialized, sizeof(gdb_initialized));
-	_go32_dpmi_lock_data(&remote_debug, sizeof(remote_debug));
 	_go32_dpmi_lock_data(hexchars, sizeof(hexchars));
 	_go32_dpmi_lock_data(registers, sizeof(registers));
 	_go32_dpmi_lock_data(&gdb_i386errcode, sizeof(gdb_i386errcode));
@@ -1018,8 +1038,6 @@ static void lock_handler_data(void) {
 						 (unsigned long) end_getpacket - (unsigned long) getpacket);
 	_go32_dpmi_lock_code(putpacket,
 						 (unsigned long) end_putpacket - (unsigned long) putpacket);
-	_go32_dpmi_lock_code(debug_error, (unsigned long) end_debug_error -
-											  (unsigned long) debug_error);
 
 	_go32_dpmi_lock_data(&mem_fault_routine, sizeof(mem_fault_routine));
 	_go32_dpmi_lock_data(&mem_err, sizeof(mem_err));
@@ -1041,6 +1059,9 @@ static void lock_handler_data(void) {
 						 (unsigned long) end_hexToInt - (unsigned long) hexToInt);
 	_go32_dpmi_lock_code(handle_exception, (unsigned long) end_handle_exception -
 												   (unsigned long) handle_exception);
+
+	_go32_dpmi_lock_code(handle_tick,
+						 (unsigned long) end_handle_tick - (unsigned long) handle_tick);
 
 	_go32_dpmi_lock_code(sigsegv_handler, (unsigned long) end_sigsegv_handler -
 												  (unsigned long) sigsegv_handler);
@@ -1077,6 +1098,12 @@ void set_debug_traps(void) {
 	signal(SIGFPE, sigfpe_handler);
 	signal(SIGTRAP, sigtrap_handler);
 	signal(SIGILL, sigill_handler);
+
+	/* Install the timer interrupt handler exec-interrupt messages from the debugger */
+	_go32_dpmi_get_protected_mode_interrupt_vector(0x1c, &old_handle_tick);
+	new_handle_tick.pm_offset = (int) handle_tick;
+	new_handle_tick.pm_selector = _go32_my_cs();
+	_go32_dpmi_chain_protected_mode_interrupt_vector(0x1c, &new_handle_tick);
 
 	/* Set init flag */
 	gdb_initialized = 1;
