@@ -4,5 +4,3 @@ project(dos-app)
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
 add_executable(main src/main.c)
-
-add_executable(timer src/timer.c)
