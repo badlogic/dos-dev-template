@@ -48,7 +48,7 @@
  * $<packet info>#<checksum>.
  *
  * where
- * <packet info> :: <characters representing the command or response>
+ * <packet info> :: <characters representing the command or response>
  * <checksum>    :: < two hex digits computed as modulo 256 sum of <packetinfo>>
  *
  * When a packet is received, it is first acknowledged with either '+' or '-'.
@@ -62,12 +62,9 @@
  ****************************************************************************/
 
 void gdb_start(void);
-void breakpoint(void);
 
 #ifdef NDEBUG
 void gdb_start(void) {}
-void breakpoint(void) {}
-void gdb_safepoint(void) {}
 #else
 #include <bios.h>
 #include <dpmi.h>
@@ -78,10 +75,10 @@ void gdb_safepoint(void) {}
 #include <string.h>
 #include <sys/exceptn.h>
 #include <go32.h>
-#include "serial.h"
+#include <sys/farptr.h>
 
 
-#ifdef GDN_DEBUG_PRINT
+#ifdef GDB_DEBUG_PRINT
 #define debug(...) printf(__VA_ARGS__)
 #else
 #define debug(...)
@@ -174,28 +171,31 @@ static char remcomOutBuffer[BUFMAX];
  */
 #define BREAKPOINT() asm("    int $3   ")
 
-/*
- * Store the error code here just in case the user cares.
- */
-int gdb_i386errcode;
+#define Farpeekw(s, o) _farpeekw((s), (o))
+#define UART_LINE_CONTROL 3
+#define UART_LCR_DIVISOR_LATCH 0x80
+#define UART_DIVISOR_LATCH_WORD 0
+#define UART_BPS_DIVISOR_115200 1
 
-/*
- * Store the vector number here (since GDB only gets the signal
- * number through the usual means, and that's not very specific).
- */
-int gdb_i386vector = -1;
+#define UART_WRITE_BPS(BASE, D)                                                                  \
+	{                                                                                            \
+		outp(BASE + UART_LINE_CONTROL, inp(BASE + UART_LINE_CONTROL) | UART_LCR_DIVISOR_LATCH);  \
+		_Outpw(BASE + UART_DIVISOR_LATCH_WORD, D);                                               \
+		outp(BASE + UART_LINE_CONTROL, inp(BASE + UART_LINE_CONTROL) & ~UART_LCR_DIVISOR_LATCH); \
+	}
+
+#define _Outpw(a, w) (outpw(a, w), (w))
 
 int handle_exception(int);
 
-#include <crt0.h>
-
-int _crt0_startup_flags;
-
 void gdb_start(void) {
-	serial_open(0, 115200, 8, 'n', 1, SER_HANDSHAKING_NONE);
+	_bios_serialcom(_COM_INIT, 0, _COM_9600 | _COM_NOPARITY | _COM_STOP1 | _COM_CHR8);
+	unsigned char irq = 4;
+	unsigned int base = Farpeekw(0x0040, 0);
+	UART_WRITE_BPS(base, UART_BPS_DIVISOR_115200);
 	set_debug_traps();
 	atexit(restore_traps);
-	breakpoint();
+	BREAKPOINT();
 }
 
 void putDebugChar(char c) { _bios_serialcom(_COM_SEND, 0, c); }
@@ -203,21 +203,6 @@ void putDebugChar(char c) { _bios_serialcom(_COM_SEND, 0, c); }
 int getDebugChar(void) {
 	return (_bios_serialcom(_COM_RECEIVE, 0, 0) & 0xff);
 }
-
-/*void putDebugChar(char c) {
-	if (serial_write(COM_1, &c, 1) != 1) {
-		//debug("Couldn't read byte from serial port\n");
-	}
-}
-
-int getDebugChar(void) {
-	char c = 0;
-	int error = 0;
-	if (serial_read(COM_1, &c, 1) != 1) {
-		//debug("Couldn't write byte to serial port\n");
-	}
-	return c;
-}*/
 
 /***********************************************************************
  *  save_regs
@@ -305,9 +290,6 @@ static void sigsegv_handler(int except_num) {
 		(*mem_fault_routine)();
 		mem_fault_routine = NULL;
 	} else {
-		/* Save error code */
-		gdb_i386errcode = __djgpp_exception_state->__sigmask & 0xffff;
-
 		/* Call the general exception handler */
 		handle_exception(except_num);
 	}
@@ -769,8 +751,6 @@ int handle_exception(int exceptionVector) {
 	char *ptr;
 	int newPC;
 
-	gdb_i386vector = exceptionVector;
-
 	/* reply to host that an exception has occurred */
 	sigval = computeSignal(exceptionVector);
 	debug("\n=== STOPPED: sig: %i, evec: %i, ip %p, [ip] %x\n", sigval, exceptionVector,
@@ -1028,8 +1008,6 @@ static void lock_handler_data(void) {
 	_go32_dpmi_lock_data(&gdb_initialized, sizeof(gdb_initialized));
 	_go32_dpmi_lock_data(hexchars, sizeof(hexchars));
 	_go32_dpmi_lock_data(registers, sizeof(registers));
-	_go32_dpmi_lock_data(&gdb_i386errcode, sizeof(gdb_i386errcode));
-	_go32_dpmi_lock_data(&gdb_i386vector, sizeof(gdb_i386vector));
 
 	_go32_dpmi_lock_data(remcomInBuffer, sizeof(remcomInBuffer));
 	_go32_dpmi_lock_data(remcomOutBuffer, sizeof(remcomOutBuffer));
@@ -1107,25 +1085,6 @@ void set_debug_traps(void) {
 
 	/* Set init flag */
 	gdb_initialized = 1;
-}
-
-/***********************************************************************
- *  breakpoint
- *
- *  Description:  This function will generate a breakpoint exception.
- *                It is used at the beginning of a program to sync up
- *                with a debugger and can be used otherwise as a quick
- *                means to stop program execution and "break" into the
- *                debugger.
- *
- *  Inputs:   None.
- *  Outputs:  None.
- *  Returns:  None.
- *
- ***********************************************************************/
-void breakpoint() {
-	if (gdb_initialized)
-		BREAKPOINT();
 }
 
 #endif
