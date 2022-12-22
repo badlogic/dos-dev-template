@@ -3,4 +3,6 @@ project(dos-app)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
-add_executable(main src/main.c)
+file(GLOB sources CONFIGURE_DEPENDS "src/*.c" "src/*.cpp" "src/*.h" )
+
+add_executable(main ${sources})
