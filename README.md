@@ -155,10 +155,9 @@ In theory, all of this is very simple. In practice, it can fall apart in the mos
 
 I can make no guarantees it will work with other GDB versions or higher level debuggers as found in e.g. CLion, etc. It should. But it might not, as most debuggers don't stick to the protocol spec.
 
-### What are all those files in `.vscode`
+### What are all those files in `.vscode`?
 These are configuration files for the various extensions and VS Code itself to provide you with a passable out-of-the-box experience.
 
 * [cmake-kits.json](.vscode/cmake-kits.json) tells the CMake Tools extension about the DJGPP toolchain, which is defined as a CMake toolchain file in [tools/toolchain-djgpp.cmake](tools/toolchain-djgpp.cmake)
 * [launch.json](.vscode/launch.json) defines the 2 launch configurations `debug target` and `run target`. They in turn depend on tasks defined in [tasks.json](.vscode/tasks.json)
 * [settings.json](.vscode/settings.json) turns off the not great C/C++ extension intellisense and configures a few other minor things.
-
