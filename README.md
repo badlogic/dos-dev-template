@@ -18,6 +18,10 @@ Install:
 
 * [Git](https://git-scm.com/): On Windows, install [Git for Windows](https://gitforwindows.org/). You will need `Git Bash` to run a shell script later.
 * [CMake](https://cmake.org/): ensure `cmake` is in your `PATH`.
+* [Ninja](https://github.com/ninja-build/ninja/releases)
+    * Windows: Put the ninja.exe file somewhere and make sure it's available on the command line via your system PATH.
+    * Linux, e.g. Debian/Ubuntu: `sudo apt install ninja`
+    * macOS, through [brew](https://brew.sh/): `brew install ninja`
 * [Visual Studio Code](https://code.visualstudio.com/): ensure [command line interface is installed](https://www.digitalocean.com/community/tutorials/how-to-install-and-use-the-visual-studio-code-vs-code-command-line-interface) and in your `PATH`.
 
 Open a shell (Git Bash on Windows), then:
