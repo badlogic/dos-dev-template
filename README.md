@@ -20,7 +20,7 @@ Install:
 * [CMake](https://cmake.org/): ensure `cmake` is in your `PATH`.
 * [Ninja](https://github.com/ninja-build/ninja/releases)
     * Windows: Put the ninja.exe file somewhere and make sure it's available on the command line via your system PATH.
-    * Linux, e.g. Debian/Ubuntu: `sudo apt install ninja`
+    * Linux, e.g. Debian/Ubuntu: `sudo apt install ninja-build`
     * macOS, through [brew](https://brew.sh/): `brew install ninja`
 * [Visual Studio Code](https://code.visualstudio.com/): ensure [command line interface is installed](https://www.digitalocean.com/community/tutorials/how-to-install-and-use-the-visual-studio-code-vs-code-command-line-interface) and in your `PATH`.
 
@@ -39,6 +39,8 @@ Once complete, open the `dos-dev-template/` folder in Visual Studio Code.
 The first time you start Visual Studio Code, you may be promoted to install the clangd language service. Make sure you click "Install!"
 
 ![doc/clangd.png](doc/clangd.png)
+
+You may also be prompted to select a kit. Select `djgpp`.
 
 ### Project structure
 ```
