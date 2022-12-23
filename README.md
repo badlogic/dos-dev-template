@@ -1,7 +1,7 @@
 # DOS demo/game development template
 ![screenshot.png](screenshot.png)
 
-Want to relieve the 90ies and create little demos and games for DOS using C/C++ with "modern" tools? Then this project template is for you.
+Want to relive the 90ies and create little demos and games for DOS using C/C++ with "modern" tools? Then this project template is for you.
 
 It's a turn key solution to setup a develpoment environment to create DOS demos/apps. consisting of:
 
