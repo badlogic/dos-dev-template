@@ -1,5 +1,5 @@
 # DOS demo/game development template
-![screenshot.png](screenshot.png)
+![doc/screenshot.png](doc/screenshot.png)
 
 Want to relive the 90ies and create little demos and games for DOS using C/C++ with "modern" tools? Then this project template is for you.
 
@@ -35,6 +35,10 @@ cd dos-dev-template
 The `download-tools.sh` script will download everything you need to start developing for DOS.
 
 Once complete, open the `dos-dev-template/` folder in Visual Studio Code.
+
+The first time you start Visual Studio Code, you may be promoted to install the clangd language service. Make sure you click "Install!"
+
+![doc/clangd.png](doc/clangd.png)
 
 ### Project structure
 ```
