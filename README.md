@@ -1,7 +1,7 @@
 # DOS demo/game development template
 ![screenshot.png](screenshot.png)
 
-Want to relieve the 90ies and create little demos and games for DOS using C/C++ with "modern" tools? Then this project template is for you.
+Want to relive the 90ies and create little demos and games for DOS using C/C++ with "modern" tools? Then this project template is for you.
 
 It's a turn key solution to setup a develpoment environment to create DOS demos/apps. consisting of:
 
@@ -137,7 +137,7 @@ After downloading the tools, it will install these Visual Studio Code extensions
 
 * [clangd](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd), the superior C/C++ code completion, navigation, and insights language service.
 * [CMake Tools](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cmake-tools), for CMake support in VS Code
-* [C/C++ for Visual Studio Code](https://code.visualstudio.com/docs/languages/cpp), needed to do anything C/C++ in VS Code. It's less than great intellisense service is replaced by clangd though.
+* [C/C++ for Visual Studio Code](https://code.visualstudio.com/docs/languages/cpp), needed to do anything C/C++ in VS Code. Its less than great intellisense service is replaced by clangd though.
 * [Native Debug Extension](https://marketplace.visualstudio.com/items?itemName=webfreak.debug), provides the high-level debugger capanble of using GDB.
 
 ### How does the debugging work?
