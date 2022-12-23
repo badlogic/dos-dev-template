@@ -40,6 +40,8 @@ The first time you start Visual Studio Code, you may be promoted to install the 
 
 ![doc/clangd.png](doc/clangd.png)
 
+You may also be prompted to select a kit. Select `djgpp`.
+
 ### Project structure
 ```
 .vscode/                     <- configuration files for VS Code & extensions
