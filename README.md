@@ -32,6 +32,20 @@ The `download-tools.sh` script will download everything you need to start develo
 
 Once complete, open the `dos-dev-template/` folder in Visual Studio Code.
 
+### Project structure
+```
+.vscode/                     <- configuration files for VS Code & extensions
+assets/                      <- files used by the program
+src/                         <- source code goes here
+   main.c                    <- a little mode 13h demo app
+tools/                       <- contains GDB, DJGPP, DOSBOX after download
+   dosbox-x.conf             <- DOSBox-x config enabling debugging via serial port
+   toolchain-djgpp.cmake     <- CMake toolchain definition file for DJGPP
+CMakeLists.txt               <- CMake build definition.
+download-tools.sh            <- Script to download GDB, DJGPP, DOSBOX,
+                                and Visual Studio Code extensions
+```
+
 ### Running and debugging
 Open the `Run and debug` view as shown in the screenshot above, then start one of the two launch configurations:
 
