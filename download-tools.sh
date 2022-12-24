@@ -18,11 +18,11 @@ if [[ "$os" == "linux-gnu"* ]]; then
 elif [[ "$os" == "darwin"* ]]; then
     gdb_url="$base_url/gdb/gdb-7.1a-djgpp-macos-x86_64.zip"
     djgpp_url="$base_url/djgpp/djgpp-osx-gcc1210.tar.bz2"
-    dosbox_url="$base_url/dosbox-x/dosbox-x-0.84.4-macos.zip"
+    dosbox_url="$base_url/dosbox-x/dosbox-x-0.84.5-macos.zip"
 elif [[ "$os" == "cygwin" ]] || [[ "$os" == "msys" ]] || [[ $(uname -r) =~ WSL ]]; then
     gdb_url="$base_url/gdb/gdb-7.1a-djgpp-windows.zip"
     djgpp_url="$base_url/djgpp/djgpp-mingw-gcc1210-standalone.zip"
-    dosbox_url="$base_url/dosbox-x/dosbox-x-0.84.4-windows.zip"
+    dosbox_url="$base_url/dosbox-x/dosbox-x-0.84.5-windows.zip"
 else
     echo "Sorry, this template doesn't support $os"
     exit
