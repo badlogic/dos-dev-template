@@ -28,6 +28,10 @@ int main(void) {
 			vram[x + y * 320] = color;
 		}
 		__djgpp_nearptr_disable();
+
+		// Set a GDB checkpoint, needed to receive interrupt commands
+		// from the debugger. You should do this in all your game loops.
+		gdb_checkpoint();
 	}
 
 	// Return to text mode
@@ -43,7 +47,5 @@ int main(void) {
 	file_content[num_bytes] = 0;
 	printf("%s\n", file_content);
 
-	while (!kbhit())
-		;
 	return 0;
 }

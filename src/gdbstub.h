@@ -62,9 +62,11 @@
  ****************************************************************************/
 
 void gdb_start(void);
+void gdb_checkpoint(void);
 
 #ifdef NDEBUG
 void gdb_start(void) {}
+void gdb_checkpoint(void) {}
 #else
 #include <bios.h>
 #include <dpmi.h>
@@ -166,6 +168,8 @@ static void (*mem_fault_routine)() = NULL;
 static char remcomInBuffer[BUFMAX];
 static char remcomOutBuffer[BUFMAX];
 
+int was_interrupted = 0;
+
 /*
  * BREAKPOINT macro
  */
@@ -184,13 +188,14 @@ static char remcomOutBuffer[BUFMAX];
 		outp(BASE + UART_LINE_CONTROL, inp(BASE + UART_LINE_CONTROL) & ~UART_LCR_DIVISOR_LATCH); \
 	}
 
-#define _Outpw(a, w) (outpw(a, w), (w))
+#define _Outpw(a, w) (outpw(a, w))
 
 int handle_exception(int);
 
 void gdb_start(void) {
+	// reference register_names, as in builds without GDB_PRINT_DEBUG it won't be referenced and generate a warning.
+	((void) register_names[0]);
 	_bios_serialcom(_COM_INIT, 0, _COM_9600 | _COM_NOPARITY | _COM_STOP1 | _COM_CHR8);
-	unsigned char irq = 4;
 	unsigned int base = Farpeekw(0x0040, 0);
 	UART_WRITE_BPS(base, UART_BPS_DIVISOR_115200);
 	set_debug_traps();
@@ -742,14 +747,10 @@ static void end_hexToInt(void) {}
  *  Returns:  None.
  *
  ***********************************************************************/
-int in_handler = 0;
 int handle_exception(int exceptionVector) {
-	if (in_handler) return 0;
-	in_handler = 1;
 	int sigval, stepping;
 	int addr, length;
 	char *ptr;
-	int newPC;
 
 	/* reply to host that an exception has occurred */
 	sigval = computeSignal(exceptionVector);
@@ -922,7 +923,6 @@ int handle_exception(int exceptionVector) {
 				if (stepping)
 					registers[PS] |= 0x100;// FIXME?
 
-				in_handler = 0;
 				return stepping;
 			}
 				/* kill the program */
@@ -935,7 +935,6 @@ int handle_exception(int exceptionVector) {
 		/* reply to the request */
 		putpacket((unsigned char *) remcomOutBuffer);
 	}
-	in_handler = 0;
 	return 0;
 }
 
@@ -943,26 +942,23 @@ static void end_handle_exception(void) {}
 
 // tick handler that polls the serial port for new bytes and calls
 // handle_exception(302)
-int tick_counter = 0;
 _go32_dpmi_seginfo old_handle_tick, new_handle_tick;
 void handle_tick(void) {
-	tick_counter++;
-	if (tick_counter >= 5) {
-		int status = _bios_serialcom(_COM_STATUS, 0, 0);
-		if (status & (1 << 8)) {
-			registers[PC] = (int) &&_continue_point;
-			asm("movl %esp, _registers+16");
-			if (handle_exception(302)) {
-				// set stepping flag
-			}
-		_continue_point:
-			asm("nop");
-		}
-		tick_counter = 0;
+	int status = _bios_serialcom(_COM_STATUS, 0, 0);
+	if (status & (1 << 8)) {
+		printf("Data on serial port, triggering exception handler.");
+		was_interrupted = 1;
 	}
 }
 
 void end_handle_tick() {}
+
+void gdb_checkpoint(void) {
+	if (was_interrupted) {
+		was_interrupted = 0;
+		BREAKPOINT();
+	}
+}
 
 /***********************************************************************
  *  restore_traps
@@ -1000,11 +996,10 @@ void restore_traps(void) {
  ***********************************************************************/
 extern jmp_buf *__djgpp_exception_state_ptr;
 static void lock_handler_data(void) {
-	_go32_dpmi_lock_data(&tick_counter, sizeof(tick_counter));
+	_go32_dpmi_lock_data(&was_interrupted, sizeof(was_interrupted));
 	_go32_dpmi_lock_data(&old_handle_tick, sizeof(old_handle_tick));
 	_go32_dpmi_lock_data(&new_handle_tick, sizeof(new_handle_tick));
 
-	_go32_dpmi_lock_data(&in_handler, sizeof(in_handler));
 	_go32_dpmi_lock_data(&gdb_initialized, sizeof(gdb_initialized));
 	_go32_dpmi_lock_data(hexchars, sizeof(hexchars));
 	_go32_dpmi_lock_data(registers, sizeof(registers));
@@ -1081,7 +1076,8 @@ void set_debug_traps(void) {
 	_go32_dpmi_get_protected_mode_interrupt_vector(0x1c, &old_handle_tick);
 	new_handle_tick.pm_offset = (int) handle_tick;
 	new_handle_tick.pm_selector = _go32_my_cs();
-	_go32_dpmi_chain_protected_mode_interrupt_vector(0x1c, &new_handle_tick);
+	_go32_dpmi_allocate_iret_wrapper(&new_handle_tick);
+	_go32_dpmi_set_protected_mode_interrupt_vector(0x1c, &new_handle_tick);
 
 	/* Set init flag */
 	gdb_initialized = 1;
