@@ -17,3 +17,4 @@ add_custom_target(assets
 add_dependencies(main assets)
 
 add_executable(keyboard examples/keyboard.c)
+add_executable(debugger examples/debugger.c)

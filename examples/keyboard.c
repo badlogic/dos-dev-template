@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define GDB_DEBUG_PRINT
+// #define GDB_DEBUG_PRINT
 #include "../src/gdbstub.h"
 
 #define KEY_EXTENDED 0x60
@@ -66,7 +66,8 @@ void reset_keyboard() {
 }
 
 int main(void) {
-	gdb_start();
+	printf("keyboard\n");
+	gdb_start();//
 	setup_keyboard();
 	printf("Set up keyboard\n");
 

@@ -93,7 +93,7 @@ void restore_traps(void);
  * BUFMAX defines the maximum number of characters in inbound/outbound buffers
  * at least NUMREGBYTES*2 are needed for register packets
  */
-#define BUFMAX 400
+#define BUFMAX 1024 * 1024
 
 /*
  * boolean flag. != 0 means we've been initialized
@@ -409,6 +409,7 @@ static void end_hex(void) {}
  *  Returns:  Beginning of packet buffer.
  *
  ***********************************************************************/
+int no_ack_mode = 0;
 static unsigned char *getpacket(void) {
 	register unsigned char *buffer = (unsigned char *) remcomInBuffer;
 	register unsigned char checksum;
@@ -429,10 +430,14 @@ static unsigned char *getpacket(void) {
 		/* now, read until a # or end of buffer is found */
 		while (count < BUFMAX) {
 			ch = getDebugChar();
-			if (ch == '$')
+			if (ch == '$') {
+				debug("Retrying\n");
 				goto retry;
-			if (ch == '#')
+			}
+			if (ch == '#') {
+				debug("Found end of packet\n");
 				break;
+			}
 			checksum = checksum + ch;
 			buffer[count] = ch;
 			count = count + 1;
@@ -446,9 +451,9 @@ static unsigned char *getpacket(void) {
 			xmitcsum += hex(ch);
 
 			if (checksum != xmitcsum) {
-				putDebugChar('-'); /* failed checksum */
+				if (!no_ack_mode) putDebugChar('-'); /* failed checksum */
 			} else {
-				putDebugChar('+'); /* successful transfer */
+				if (!no_ack_mode) putDebugChar('+'); /* successful transfer */
 
 				/* if a sequence char is present, reply the sequence ID */
 				if (buffer[2] == ':') {
@@ -497,6 +502,7 @@ static void putpacket(unsigned char *buffer) {
 		putDebugChar(hexchars[checksum >> 4]);
 		putDebugChar(hexchars[checksum % 16]);
 
+		if (no_ack_mode) break;
 	} while (getDebugChar() != '+');
 }
 
@@ -747,7 +753,11 @@ static void end_hexToInt(void) {}
  *  Returns:  None.
  *
  ***********************************************************************/
+int handler_mutex = 0;
 int handle_exception(int exceptionVector) {
+	if (handler_mutex) return 0;
+	handler_mutex = 1;
+
 	int sigval, stepping;
 	int addr, length;
 	char *ptr;
@@ -812,7 +822,18 @@ int handle_exception(int exceptionVector) {
 				} else if (!strcmp(ptr, "Symbol::")) {
 					debug("Symbol:: (Notify the target that GDB is prepared to serve symbol lookup requests)\n");
 					strcpy(remcomOutBuffer, "OK");
-				} else if (!strcmp(ptr, "")) {
+				} else if (!strcmp(ptr, "Supported")) {
+					strcpy(remcomOutBuffer, "QStartNoAckMode+");
+				} else if (!strcmp(ptr, "StartNoAckMode")) {
+					strcpy(remcomOutBuffer, "OK");
+				} else {
+					debug("Unhandled: %c%s\n", cmd, ptr);
+				}
+				break;
+			case 'Q':
+				if (!strcmp(ptr, "StartNoAckMode")) {
+					strcpy(remcomOutBuffer, "OK");
+					no_ack_mode = 1;
 				} else {
 					debug("Unhandled: %c%s\n", cmd, ptr);
 				}
@@ -923,6 +944,7 @@ int handle_exception(int exceptionVector) {
 				if (stepping)
 					registers[PS] |= 0x100;// FIXME?
 
+				handler_mutex = 0;
 				return stepping;
 			}
 				/* kill the program */
@@ -935,6 +957,8 @@ int handle_exception(int exceptionVector) {
 		/* reply to the request */
 		putpacket((unsigned char *) remcomOutBuffer);
 	}
+
+	handler_mutex = 0;
 	return 0;
 }
 
@@ -946,7 +970,6 @@ _go32_dpmi_seginfo old_handle_tick, new_handle_tick;
 void handle_tick(void) {
 	int status = _bios_serialcom(_COM_STATUS, 0, 0);
 	if (status & (1 << 8)) {
-		printf("Data on serial port, triggering exception handler.");
 		was_interrupted = 1;
 	}
 }
@@ -996,6 +1019,8 @@ void restore_traps(void) {
  ***********************************************************************/
 extern jmp_buf *__djgpp_exception_state_ptr;
 static void lock_handler_data(void) {
+	_go32_dpmi_lock_data(&no_ack_mode, sizeof(no_ack_mode));
+	_go32_dpmi_lock_data(&handler_mutex, sizeof(handler_mutex));
 	_go32_dpmi_lock_data(&was_interrupted, sizeof(was_interrupted));
 	_go32_dpmi_lock_data(&old_handle_tick, sizeof(old_handle_tick));
 	_go32_dpmi_lock_data(&new_handle_tick, sizeof(new_handle_tick));
