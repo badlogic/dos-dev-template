@@ -64,13 +64,23 @@ Open the `Run and debug` view as shown in the screenshot above, then start one o
 
 > Make sure the [Cmake Build Variant](https://stackoverflow.com/a/73329010) matches the launch configuration, e.g. set the `Debug` variant when launching `debug target`, and the `Release` variant when launching the `run target`. Otherwise, the debugger may not be able to attach (`Release` variant when launching `debug target`), or the program may hang, waiting for the debugger (`Debug` variant when launching `release target`)
 
+For your program to support debugging, you have to do 3 things:
+
+1. In one `.c` or `.cpp` files, add the following code:
+   ```
+   #define GDB_IMPLEMENTATION
+   #include "gdbstub.h"
+   ```
+2. In your `main()`, call `gdb_start()`.
+3. In your main loop, call `gdb_checkpoint()` to give the debugger a chance to interrupt your program.
+
 The debugger has a few limitations & gotchas:
 
-* You can not set breakpoints while the program is running. Set breakpoints before launching a debugging session, or while the program is halted after hitting a breakpoint, stepped, or was interrupted.
+* You can not set breakpoints while the program is running. Set breakpoints before launching a debugging session, or while the program is halted after hitting a breakpoint, stepping, or was interrupted.
 * The debugger is quite a bit slower than what you may be used to. This is due to the use of the serial port emulation for communication.
 * Always make sure to close the DOSBox-x window before launching a new debugging session.
 * If the debugger appears to be stuck, either wait for it to timeout, or execute the `Debug: Stop` command from the command palette.
-* When you click the debugger's `Pause` button or press `F6` to pause the program, you will end up in an interrupt handler. Don't get confused, simply switch to a source file, set a breakpoint and resume.
+* When you click the debugger's `Pause` button or press `F6` to pause the program, you will end up in `gdb_checkpoint()`.
 * In general, the debugging support is one big hack, there may be dragons. Still better than `printf`-ing your way through life!
 
 ## Writting code
@@ -159,7 +169,7 @@ And here's how it works:
 1. The program is started in DOSBox-x and first calls `gdb_start()`. This function initializes the serial port to use the highest baud rate possible, then triggers a breakpoint via `int 3`. This in turn triggers a special signal handler implemented in the GDB stub which listens for incoming data from the serial port.
 1. The debugger (GDB) is told to connect to a remote process via TCP at address localhost:5123. This establishes a connection to the signal handler that waits for data coming in on the serial port.
 1. GDB sends commands, like set a breakpoint, step, or continue, which the signal handler interprets and executes.
-1. As a special case, if the program is running and the debugger wants to interrupt it to set further breakpoints or get information, the GDB stub also hooks the timer interrupt to poll the serial port state. In case there's data waiting, it will call the signal handler, which then takes over processing the new debugger commands.
+1. As a special case, if the program is running and the debugger wants to interrupt it to set further breakpoints or get information, the GDB stub also hooks the timer interrupt to poll the serial port state. In case there's data waiting, it set an internal flag, which will prompt `gdb_checkpoint()` to trigger a software breakpoint via `int 3`, which in turn will invoke the signal handler.
 
 In theory, all of this is very simple. In practice, it can fall apart in the most creative ways. The implementation was tested with the included GDB version, as well as the Native Debugger extension which sits on top the included GDB version.
 

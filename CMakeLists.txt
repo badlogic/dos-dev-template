@@ -3,7 +3,7 @@ project(dos-app)
 
 set(CMAKE_GENERATOR Ninja)
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
-add_compile_options(-Wall -std=gnu99)
+add_compile_options(-Wall -std=gnu99 -save-temps)
 
 file(GLOB sources CONFIGURE_DEPENDS "src/*.c" "src/*.cpp" "src/*.h" )
 
@@ -16,5 +16,5 @@ add_custom_target(assets
 )
 add_dependencies(main assets)
 
-add_executable(keyboard examples/keyboard.c)
-add_executable(debugger examples/debugger.c)
+add_executable(keyboard doc/examples/keyboard.c)
+add_executable(debugger doc/examples/debugger.c)

@@ -1,9 +1,11 @@
-#include "gdbstub.h"
 #include <bios.h>
 #include <dpmi.h>
 #include <sys/nearptr.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+#define GDB_IMPLEMENTATION
+#include "gdbstub.h"
 
 void set_video_mode(int mode) {
 	__dpmi_regs regs = {0};
