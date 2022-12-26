@@ -46,6 +46,7 @@ You may also be prompted to select a kit. Select `djgpp`.
 ```
 .vscode/                     <- configuration files for VS Code & extensions
 assets/                      <- files used by the program
+doc/                         <- documentation and example programs
 src/                         <- source code goes here
    main.c                    <- a little mode 13h demo app
 tools/                       <- contains GDB, DJGPP, DOSBOX after download
