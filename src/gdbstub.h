@@ -1,16 +1,16 @@
 #pragma once
 
-#include <pc.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <bios.h>
 #include <dpmi.h>
+#include <go32.h>
+#include <pc.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <sys/farptr.h>
 #include <sys/exceptn.h>
-#include <go32.h>
+#include <sys/farptr.h>
 
 void gdb_start();
 void gdb_checkpoint();
@@ -31,11 +31,14 @@ static void gdb_write_packet(unsigned char *buffer);
 #define gdb_debug(...)
 #endif
 
+#include <crt0.h>
+int _crt0_startup_flags = _CRT0_FLAG_LOCK_MEMORY;
+
 #define UART_LINE_CONTROL 3
 #define UART_LCR_DIVISOR_LATCH 0x80
 #define UART_DIVISOR_LATCH_WORD 0
 #define UART_BPS_DIVISOR_115200 1
-#define IO_BUFFER_SIZE 512 * 512
+#define IO_BUFFER_SIZE 1024 * 1024
 
 // clang-format off
 enum gdb_register { EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI, EIP, EFLAGS, CS, SS, DS, ES, FS, GS, NUM_REGISTERS };
@@ -58,16 +61,17 @@ gdb_context ctx = {0};
 static int handler_mutex;
 
 static void serial_port_init() {
-	_bios_serialcom(_COM_INIT, 0, (char) (_COM_9600 | _COM_NOPARITY | _COM_STOP1 | _COM_CHR8));
+	_bios_serialcom(_COM_INIT, 0,
+					(char) (_COM_9600 | _COM_NOPARITY | _COM_STOP1 | _COM_CHR8));
 	unsigned int base = _farpeekw(0x0040, 0);
-	outp(base + UART_LINE_CONTROL, inp(base + UART_LINE_CONTROL) | UART_LCR_DIVISOR_LATCH);
+	outp(base + UART_LINE_CONTROL,
+		 inp(base + UART_LINE_CONTROL) | UART_LCR_DIVISOR_LATCH);
 	outpw(base + UART_DIVISOR_LATCH_WORD, UART_BPS_DIVISOR_115200);
-	outp(base + UART_LINE_CONTROL, inp(base + UART_LINE_CONTROL) & ~UART_LCR_DIVISOR_LATCH);
+	outp(base + UART_LINE_CONTROL,
+		 inp(base + UART_LINE_CONTROL) & ~UART_LCR_DIVISOR_LATCH);
 }
 
-static void serial_port_putc(char c) {
-	_bios_serialcom(_COM_SEND, 0, c);
-}
+static void serial_port_putc(char c) { _bios_serialcom(_COM_SEND, 0, c); }
 
 static int serial_port_getc() {
 	return _bios_serialcom(_COM_RECEIVE, 0, 0) & 0xff;
@@ -186,12 +190,7 @@ asm("   iret");
 
 static void exception_sigsegv_handler(int exception_number) {
 	exception_save_registers();
-	if (ctx.mem_error_callback != 0) {
-		(*ctx.mem_error_callback)();
-		ctx.mem_error_callback = NULL;
-	} else {
-		gdb_loop(exception_number);
-	}
+	gdb_loop(exception_number);
 	exception_return();
 }
 
@@ -258,7 +257,8 @@ static int exception_to_signal(int exception_number) {
 
 static void exception_init() {
 	_go32_dpmi_lock_data(register_names, sizeof(register_names));
-	for (int i = 0; i < NUM_REGISTERS; i++) _go32_dpmi_lock_data(register_names[0], 3);
+	for (int i = 0; i < NUM_REGISTERS; i++)
+		_go32_dpmi_lock_data(register_names[0], 3);
 	_go32_dpmi_lock_data(hex_chars, sizeof(hex_chars));
 	_go32_dpmi_lock_data(&ctx, sizeof(ctx));
 	_go32_dpmi_lock_data(&handler_mutex, sizeof(handler_mutex));
@@ -284,12 +284,10 @@ static void exception_init() {
 	_go32_dpmi_lock_code(gdb_loop, 4096);
 	_go32_dpmi_lock_code(gdb_checkpoint, 4096);
 
-
 	signal(SIGSEGV, exception_sigsegv_handler);
 	signal(SIGFPE, exception_handler);
 	signal(SIGTRAP, exception_handler);
 	signal(SIGILL, exception_handler);
-
 
 	_go32_dpmi_get_protected_mode_interrupt_vector(0x1c, &ctx.old_tick_handler);
 	ctx.tick_handler.pm_offset = (int) gdb_tick_handler;
@@ -354,9 +352,11 @@ static unsigned char *gdb_read_packet() {
 			xmitcsum += hex_to_byte(ch);
 
 			if (checksum != xmitcsum) {
-				if (!ctx.no_ack_mode) serial_port_putc('-');
+				if (!ctx.no_ack_mode)
+					serial_port_putc('-');
 			} else {
-				if (!ctx.no_ack_mode) serial_port_putc('+');
+				if (!ctx.no_ack_mode)
+					serial_port_putc('+');
 				if (buffer[2] == ':') {
 					serial_port_putc(buffer[0]);
 					serial_port_putc(buffer[1]);
@@ -388,12 +388,14 @@ static void gdb_write_packet(unsigned char *buffer) {
 		serial_port_putc(hex_chars[checksum >> 4]);
 		serial_port_putc(hex_chars[checksum % 16]);
 
-		if (ctx.no_ack_mode) break;
+		if (ctx.no_ack_mode)
+			break;
 	} while (serial_port_getc() != '+');
 }
 
 void gdb_loop(int exception_number) {
-	if (handler_mutex) return;
+	if (handler_mutex)
+		return;
 	handler_mutex = 1;
 
 	int stepping, addr, length;
@@ -401,8 +403,9 @@ void gdb_loop(int exception_number) {
 
 	/* reply to host that an exception has occurred */
 	int sigval = exception_to_signal(exception_number);
-	gdb_debug("\n=== STOPPED: sig: %i, evec: %i, ip %p, [ip] %x\n", sigval, exception_number,
-			  (void *) ctx.registers[EIP], *(unsigned char *) ctx.registers[EIP]);
+	gdb_debug("\n=== STOPPED: sig: %i, evec: %i, ip %p, [ip] %x\n", sigval,
+			  exception_number, (void *) ctx.registers[EIP],
+			  *(unsigned char *) ctx.registers[EIP]);
 	for (int l = 0; l < NUM_REGISTERS; l++)
 		gdb_debug("%s: %x ", register_names[l], ctx.registers[l]);
 	gdb_debug("\n");
@@ -453,15 +456,20 @@ void gdb_loop(int exception_number) {
 					ctx.output_buffer[1] = '0';
 					ctx.output_buffer[2] = 0;
 				} else if (!strcmp(ptr, "sThreadInfo")) {
-					gdb_debug("qsThreadInfo (Obtain a list of all active thread IDs, subsequent)\n");
+					gdb_debug("qsThreadInfo (Obtain a list of all active thread IDs, "
+							  "subsequent)\n");
 					ctx.output_buffer[0] = 'l';
 					ctx.output_buffer[1] = 0;
 				} else if (!strcmp(ptr, "Symbol::")) {
-					gdb_debug("Symbol:: (Notify the target that GDB is prepared to serve symbol lookup requests)\n");
+					gdb_debug("Symbol:: (Notify the target that GDB is prepared to serve "
+							  "symbol lookup requests)\n");
 					strcpy(ctx.output_buffer, "OK");
 				} else if (!strcmp(ptr, "Supported")) {
 					gdb_debug("qSupported");
-					strcpy(ctx.output_buffer, "QStartNoAckMode+");
+					strcpy(ctx.output_buffer, "QStartNoAckMode+;PacketSize=1048576;");
+				} else if (!strcmp(ptr, "Offsets")) {
+					gdb_debug("qOffsets");
+					strcpy(ctx.output_buffer, "Text=0;Data=0;Bss=0;");
 				} else {
 					gdb_debug("Unhandled: %c%s\n", cmd, ptr);
 				}
@@ -485,7 +493,8 @@ void gdb_loop(int exception_number) {
 							  "",
 							  register_names[l], ctx.registers[l]);
 				gdb_debug("\n");
-				mem_to_hex((char *) ctx.registers, ctx.output_buffer, NUM_REGISTERS * 4, 0);
+				mem_to_hex((char *) ctx.registers, ctx.output_buffer, NUM_REGISTERS * 4,
+						   0);
 				break;
 			case 'G':
 				gdb_debug("G (Write general registers)\n");
@@ -509,7 +518,8 @@ void gdb_loop(int exception_number) {
 				break;
 			}
 			case 'm':
-				gdb_debug("m (Read length addressable memory units starting at address addr)\n");
+				gdb_debug("m (Read length addressable memory units starting at address "
+						  "addr)\n");
 				if (hex_to_int(&ptr, &addr)) {
 					gdb_debug("read, addr: %p, ", (void *) addr);
 					if (*(ptr++) == ',') {
@@ -529,7 +539,8 @@ void gdb_loop(int exception_number) {
 				}
 				break;
 			case 'M':
-				gdb_debug("M (Write length addressable memory units starting at address addr)\n");
+				gdb_debug("M (Write length addressable memory units starting at address "
+						  "addr)\n");
 				if (hex_to_int(&ptr, &addr)) {
 					gdb_debug("write, addr: %p, ", (void *) addr);
 					if (*(ptr++) == ',') {
@@ -561,7 +572,8 @@ void gdb_loop(int exception_number) {
 				if (hex_to_int(&ptr, &addr)) {
 					ctx.registers[EIP] = addr;
 				}
-				gdb_debug("%c, offset: %p, ip: %p (%s)\n", cmd, (void *) addr, (void *) ctx.registers[EIP], cmd == 'c' ? "Continue" : "Step");
+				gdb_debug("%c, offset: %p, ip: %p (%s)\n", cmd, (void *) addr,
+						  (void *) ctx.registers[EIP], cmd == 'c' ? "Continue" : "Step");
 				ctx.registers[EFLAGS] &= 0xfffffeff;
 				if (stepping)
 					ctx.registers[EFLAGS] |= 0x100;
