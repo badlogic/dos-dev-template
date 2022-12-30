@@ -84,7 +84,7 @@ The debugger has a few limitations & gotchas:
 * When you click the debugger's `Pause` button or press `F6` to pause the program, you will end up in `gdb_checkpoint()`.
 * In general, the debugging support is one big hack, there may be dragons. Still better than `printf`-ing your way through life!
 
-## Writting code
+## Writing code
 Easy, just open or create a new `.h`, `.c`, or `.cpp` file in the `src/` folder and type away. You will get full code completion, navigation and what young people call "lints". Newly created files will be added to the build automatically.
 
 Your code is compiled with [DJGPP](https://www.delorie.com/djgpp/doc/eli-m17n99.html), which means it will become a beautiful 32-bit protected mode application. Check out the resources below to get your DOS programming juices flowing:
