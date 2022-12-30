@@ -104,7 +104,7 @@ If you don't like graphical user interfaces, you can also do all of the above fr
 
 ### Building
 ```
-cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=tools/toolchain-djgpp.cmake -S . -B build
+cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=tools/toolchain-djgpp.cmake -S . -B build -G Ninja
 ```
 
 This configures your build to produce a debug binary. For a release binary, specify `-DCMAKE_BUILD_TYPE=Release`. You generally run this command only when your build type changes.
