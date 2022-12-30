@@ -9,6 +9,7 @@ It's a turn key solution to setup a develpoment environment to create DOS demos/
 * [GDB](https://www.sourceware.org/gdb/), the debugger used to debug the DOS demo/game.
 * [DOSBox-x](https://dosbox-x.com/), the bells and whistles DOS-emulator to develop and run the DOS demo/game in.
 * [CMake](https://cmake.org/), to define what needs to be build how.
+* [Ninja](https://github.com/ninja-build/ninja/releases), to execute the build defined by CMake.
 * [Visual Studio Code](https://code.visualstudio.com/), to tie all the above together and provide an integrated development environment.
 
 ## Quickstart Guide
@@ -33,6 +34,8 @@ cd dos-dev-template
 ```
 
 The `download-tools.sh` script will download everything you need to start developing for DOS.
+
+> Note: On Linux, you need to install the following packages using your distribution's package manager: `libncurses5 libfl-dev libslirp-dev libfluidsynth-dev`
 
 Once complete, open the `dos-dev-template/` folder in Visual Studio Code.
 
