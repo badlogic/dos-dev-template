@@ -1,5 +1,32 @@
 #pragma once
 
+#include <stdbool.h>
+
+#ifdef NDEBUG
+#define gdb_start()
+#define gdb_checkpoint()
+#else
+#ifdef DJGPP
+#define gdb_start()                      \
+	_gdb_start();                        \
+	printf("Waiting for debugger...\n"); \
+	asm("int $3");
+#define gdb_checkpoint() \
+	if (_gdb_checkpoint()) asm("int $3");
+#else
+#define gdb_start()
+#define gdb_checkpoint()
+#endif
+#endif
+
+#ifdef GDB_IMPLEMENTATION
+#ifdef NDEBUG
+void _gdb_start() {}
+bool _gdb_checkpoint() { return false; }
+#elif !defined(DJGPP)
+void _gdb_start() {}
+bool _gdb_checkpoint() { return false; }
+#else
 #include <bios.h>
 #include <dpmi.h>
 #include <go32.h>
@@ -12,14 +39,8 @@
 #include <sys/exceptn.h>
 #include <sys/farptr.h>
 
-void gdb_start();
-void gdb_checkpoint();
-
-#ifdef GDB_IMPLEMENTATION
-#ifdef NDEBUG
-void gdb_start() {}
-void gdb_checkpoint() {}
-#else
+void _gdb_start();
+bool _gdb_checkpoint();
 void gdb_loop(int exception_number);
 void gdb_tick_handler();
 static unsigned char *gdb_read_packet();
@@ -278,11 +299,11 @@ static void exception_init() {
 	_go32_dpmi_lock_code(exception_sigsegv_handler, 4096);
 	_go32_dpmi_lock_code(exception_handler, 4096);
 	_go32_dpmi_lock_code(exception_to_signal, 4096);
-	_go32_dpmi_lock_code(gdb_start, 4096);
+	_go32_dpmi_lock_code(_gdb_start, 4096);
 	_go32_dpmi_lock_code(gdb_read_packet, 4096);
 	_go32_dpmi_lock_code(gdb_write_packet, 4096);
 	_go32_dpmi_lock_code(gdb_loop, 4096);
-	_go32_dpmi_lock_code(gdb_checkpoint, 4096);
+	_go32_dpmi_lock_code(_gdb_checkpoint, 4096);
 
 	signal(SIGSEGV, exception_sigsegv_handler);
 	signal(SIGFPE, exception_handler);
@@ -305,12 +326,11 @@ static void exception_dispose() {
 	_go32_dpmi_set_protected_mode_interrupt_vector(0x1c, &ctx.old_tick_handler);
 }
 
-void gdb_start(void) {
+void _gdb_start(void) {
 	((void) register_names[0]);
 	serial_port_init();
 	exception_init();
 	atexit(exception_dispose);
-	asm("int $3");
 }
 
 static unsigned char *gdb_read_packet() {
@@ -601,11 +621,12 @@ void gdb_tick_handler(void) {
 	}
 }
 
-void gdb_checkpoint() {
+bool _gdb_checkpoint() {
 	if (ctx.was_interrupted) {
 		ctx.was_interrupted = 0;
-		asm("int $3");
+		return true;
 	}
+	return false;
 }
 #endif
 #endif
