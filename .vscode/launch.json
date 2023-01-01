@@ -11,13 +11,21 @@
             "cwd": "${workspaceRoot}",
             "gdbpath": "${workspaceFolder}/tools/gdb/gdb",
             "preLaunchTask": "task-dosbox-debug",
-            "printCalls": true
+            "internalConsoleOptions": "neverOpen",
+            "stopAtConnect": true
         },
         {
             "type": "node-terminal",
             "name": "run target",
             "request": "launch",
-            "command": "cmake --build build && ${workspaceFolder}/tools/dosbox-x/dosbox-x -conf ${workspaceFolder}/tools/dosbox-x.conf -fastlaunch -exit ${command:cmake.getLaunchTargetPath}.exe && exit"
+            "command": "cmake --build build && ${workspaceFolder}/tools/dosbox-x/dosbox-x -conf ${workspaceFolder}/tools/dosbox-x.conf -fastlaunch -exit ${command:cmake.getLaunchTargetPath}.exe && exit",
+            "windows": {
+                "name": "DOS run target",
+                "type": "node-terminal",
+                "request": "launch",
+                "command": ".vscode/run-windows.bat ${command:cmake.getLaunchTargetPath}; exit",
+                "cwd": "${workspaceFolder}"
+            }
         }
     ]
 }
