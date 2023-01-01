@@ -1,4 +1,7 @@
 # DOS demo/game development template
+
+# Attention: for an even better experience, use my new [VSCode DOS development extension](https://marketplace.visualstudio.com/items?itemName=badlogicgames.dos-dev)
+
 ![doc/screenshot.png](doc/screenshot.png)
 
 Want to relive the 90ies and create little demos and games for DOS using C/C++ with "modern" tools? Then this project template is for you.
