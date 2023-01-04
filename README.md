@@ -6,7 +6,7 @@
 
 Want to relive the 90ies and create little demos and games for DOS using C/C++ with "modern" tools? Then this project template is for you.
 
-It's a turn key solution to setup a develpoment environment to create DOS demos/apps. consisting of:
+It's a turn key solution to setup a development environment to create DOS demos/apps. consisting of:
 
 * [DJGPP](https://www.delorie.com/djgpp/), the GCC-based C/C++ compiler for DOS (DPMI/protected mode).
 * [GDB](https://www.sourceware.org/gdb/), the debugger used to debug the DOS demo/game.
